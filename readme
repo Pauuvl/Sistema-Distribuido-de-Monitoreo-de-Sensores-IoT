@@ -1,14 +1,21 @@
-#  IoT Monitoring System — Servidor Central
+## 📡 IoT Monitoring System — Servidor Central
 
-##  Descripción
+### 📌 Descripción técnica
 
-Este proyecto implementa un **Servidor Central de Monitoreo IoT** desarrollado en lenguaje C, que permite la comunicación entre sensores simulados y operadores mediante un protocolo de aplicación propio sobre TCP.
+El sistema corresponde a un **Servidor Central de Monitoreo IoT**, implementado en lenguaje C, cuya función principal es actuar como **nodo intermediario** dentro de una arquitectura cliente-servidor.
 
-El servidor recibe mediciones de sensores, procesa los datos, detecta anomalías y notifica a los operadores en tiempo real.
+Su responsabilidad es:
+
+* Recibir datos desde sensores IoT simulados
+* Procesar y validar la información
+* Detectar condiciones anómalas mediante reglas definidas (umbrales)
+* Notificar en tiempo real a los operadores conectados
+
+Se utiliza un **protocolo de aplicación propio (IoTMP)** sobre **TCP**, garantizando comunicación confiable mediante sockets tipo `SOCK_STREAM`.
 
 ---
 
-## Integrantes del grupo
+### 👥 Integrantes del grupo
 
 * Juan José Álvarez
 * Helen Valentina Sanabria
@@ -16,34 +23,60 @@ El servidor recibe mediciones de sensores, procesa los datos, detecta anomalías
 
 ---
 
-## Arquitectura del sistema
+### 🏗️ Arquitectura del sistema
 
-El sistema está compuesto por:
+El sistema sigue un modelo distribuido basado en tres componentes:
 
-* **Sensores IoT** → envían datos periódicos
-* **Servidor central (este proyecto)** → procesa datos y genera alertas
-* **Operadores** → consultan información y reciben alertas
+1. **Sensores IoT**
+
+   * Generan y envían datos periódicos
+   * Actúan como clientes TCP
+
+2. **Servidor Central**
+
+   * Punto de procesamiento
+   * Maneja múltiples conexiones concurrentes
+   * Aplica lógica de negocio (detección de alertas)
+
+3. **Operadores**
+
+   * Clientes que consultan el estado del sistema
+   * Reciben notificaciones en tiempo real
+
+Flujo general:
+
+```
+Sensores → Servidor → Operadores
+```
 
 ---
 
-## Tecnologías utilizadas
+### ⚙️ Tecnologías utilizadas
 
-* Lenguaje: C
-* Comunicación: Sockets TCP (`SOCK_STREAM`)
-* Concurrencia: Hilos (`pthread`)
-* Sistema operativo: Linux / WSL
+* **Lenguaje:** C
+* **Comunicación:** Sockets TCP
+* **Concurrencia:** Hilos con `pthread`
+* **Sistema operativo:** Linux / WSL
+
+Conceptos clave:
+
+* **Sockets:** permiten comunicación entre procesos en red
+* **TCP:** protocolo orientado a conexión (fiable)
+* **Multihilo:** permite atender múltiples clientes simultáneamente
 
 ---
 
-## Ejecución del servidor
+### 🚀 Ejecución del servidor
 
-### 1. Compilar
+#### 1. Compilación
 
 ```bash
 gcc -o server server.c -lpthread
 ```
 
-### 2. Ejecutar
+* `-lpthread`: enlaza la biblioteca de hilos
+
+#### 2. Ejecución
 
 ```bash
 ./server 8080 logs.txt
@@ -51,44 +84,37 @@ gcc -o server server.c -lpthread
 
 Parámetros:
 
-* `8080` → Puerto del servidor
-* `logs.txt` → Archivo donde se guardan los logs
+* `8080`: puerto de escucha
+* `logs.txt`: archivo de persistencia de eventos
 
 ---
 
-## Protocolo de comunicación (IoTMP)
+### 📡 Protocolo IoTMP (IoT Monitoring Protocol)
 
-El servidor implementa un protocolo basado en texto plano.
+Es un **protocolo de capa de aplicación basado en texto plano**, lo que facilita su depuración y uso con herramientas como `netcat`.
 
-### Registro de operador
+#### 🔹 Registro de operador
 
 ```
 REGISTER OPERATOR <id>
 ```
 
-Ejemplo:
-
-```
-REGISTER OPERATOR op1
-```
+* Registra un cliente como operador
+* El servidor lo añade a la lista de receptores de alertas
 
 ---
 
-### Registro de sensor
+#### 🔹 Registro de sensor
 
 ```
 REGISTER SENSOR <id>
 ```
 
-Ejemplo:
-
-```
-REGISTER SENSOR s1
-```
+* Identifica al cliente como fuente de datos
 
 ---
 
-### Envío de datos
+#### 🔹 Envío de datos
 
 ```
 DATA <sensor-id> <tipo> <valor> <timestamp>
@@ -100,55 +126,76 @@ Ejemplo:
 DATA s1 temp 80.0 2024-01-01T10:00:00
 ```
 
+Procesamiento:
+
+1. Validación del formato
+2. Conversión del valor
+3. Evaluación contra umbrales
+
 ---
 
-### Consulta de sensores
+#### 🔹 Consulta de sensores
 
 ```
 GET SENSORS
 ```
 
+* Retorna la lista de sensores registrados
+
 ---
 
-### Ping
+#### 🔹 Ping
 
 ```
 PING
 ```
 
+* Verifica conectividad (keep-alive)
+
 ---
 
-### Desconexión
+#### 🔹 Desconexión
 
 ```
 DISCONNECT
 ```
 
+* Cierra la conexión de forma controlada
+
 ---
 
-## Sistema de alertas
+### 🚨 Sistema de alertas
 
-El servidor genera alertas cuando un valor supera un umbral:
+El servidor implementa una lógica basada en umbrales:
 
 * Temperatura > 75 → `HIGH`
 * Temperatura > 95 → `CRITICAL`
 
-Ejemplo de alerta:
+Ejemplo:
 
 ```
 ALERT s1 temp HIGH 80.00 2024-01-01T10:00:00
 ```
 
-Las alertas se envían automáticamente a todos los operadores conectados.
+Flujo interno:
+
+1. Recepción del dato
+2. Evaluación del umbral
+3. Generación del evento
+4. Broadcast a operadores conectados
+
+Este mecanismo corresponde a un modelo **publish-subscribe simplificado**.
 
 ---
 
-## Sistema de logs
+### 📝 Sistema de logs
 
-El servidor registra eventos importantes en tiempo real en un archivo de logs:
+Se implementa un sistema de **registro persistente (logging)** para trazabilidad.
+
+Eventos registrados:
 
 * Conexión de clientes
-* Registro de sensores y operadores
+* Registro de entidades
 * Recepción de datos
 * Generación de alertas
 * Desconexiones
@@ -160,13 +207,19 @@ Ejemplo:
 [2026-03-31 12:20:57] ALERT s1 temp HIGH 80.00 2024-01-01T10:00:00
 ```
 
+Importancia:
+
+* Auditoría del sistema
+* Depuración de errores
+* Análisis posterior
+
 ---
 
-##  Pruebas del sistema
+### 🧪 Pruebas del sistema
 
-Se puede probar el servidor usando `netcat`:
+Se utiliza `netcat` como cliente TCP para pruebas manuales.
 
-### Operador
+#### Operador
 
 ```bash
 nc localhost 8080
@@ -179,7 +232,7 @@ GET SENSORS
 
 ---
 
-### Sensor
+#### Sensor
 
 ```bash
 nc localhost 8080
@@ -192,26 +245,43 @@ DATA s1 temp 80.0 2024-01-01T10:00:00
 
 ---
 
-##  Características principales
+### 📊 Características principales
 
-* Manejo de múltiples clientes simultáneos
-* Comunicación en tiempo real
-* Protocolo propio basado en texto
-* Sistema de alertas automático
-* Registro de eventos (logging)
-* Arquitectura cliente-servidor
-
----
-
-## Consideraciones
-
-* El servidor es tolerante a múltiples conexiones
-* Los datos se procesan en tiempo real
-* Los logs permiten trazabilidad del sistema
-* El diseño es escalable para integrar más sensores
+* Manejo concurrente de múltiples clientes (multihilo)
+* Comunicación en tiempo real sobre TCP
+* Protocolo de aplicación propio
+* Sistema automático de detección de anomalías
+* Persistencia mediante logs
+* Arquitectura escalable cliente-servidor
 
 ---
 
-##  Curso
+### 🎤 Consideraciones técnicas
 
-Internet: Arquitectura y Protocolos
+* El uso de `pthread` permite escalabilidad horizontal en conexiones
+* TCP garantiza entrega ordenada y confiable
+* El protocolo basado en texto facilita pruebas, pero no es óptimo en rendimiento
+* El sistema puede evolucionar hacia:
+
+  * Uso de JSON o binario para eficiencia
+  * Implementación de autenticación
+  * Manejo de distintos tipos de sensores
+  * Balanceo de carga
+
+---
+
+### 📚 Contexto académico
+
+Curso: Internet: Arquitectura y Protocolos
+
+Este proyecto integra conceptos fundamentales como:
+
+* Modelo cliente-servidor
+* Protocolos de aplicación
+* Comunicación por sockets
+* Concurrencia
+* Procesamiento en tiempo real
+
+---
+
+Si quieres, puedo ayudarte a convertir esto en diapositivas, PDF o explicarlo punto por punto para una exposición.
