@@ -1,0 +1,16 @@
+# Makefile — Servidor IoT Monitoring
+CC      = gcc
+CFLAGS  = -Wall -Wextra -O2
+LIBS    = -lpthread
+TARGET  = server
+SRC     = server.c
+
+all: $(TARGET)
+
+$(TARGET): $(SRC)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRC) $(LIBS)
+
+clean:
+	rm -f $(TARGET)
+
+.PHONY: all clean

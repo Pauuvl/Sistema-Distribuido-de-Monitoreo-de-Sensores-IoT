@@ -1,0 +1,20 @@
+# Dockerfile — Servidor IoT Monitoring
+# Imagen base mínima con GCC
+FROM gcc:13-bookworm
+
+WORKDIR /app
+
+# Copiar fuente y compilar
+COPY server.c .
+COPY Makefile .
+
+RUN make
+
+# Crear carpeta de logs
+RUN mkdir -p /app/logs
+
+# Exponer el puerto por defecto
+EXPOSE 8080
+
+# Ejecutar: puerto 8080, logs en /app/logs/server.log
+CMD ["./server", "8080", "/app/logs/server.log"]
