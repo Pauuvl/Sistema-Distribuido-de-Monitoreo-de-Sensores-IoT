@@ -24,22 +24,29 @@ typedef struct {
     char sensor_type[16];
     double last_value;
     time_t last_ping;
+
+    char ip[INET_ADDRSTRLEN];
+    int port;
+
 } Client;
 
 Client clients[MAX_CLIENTS];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 FILE *log_file;
 
-/* ---------- LOG ---------- */
-void log_event(const char *msg) {
+/* ---------- LOG COMPLETO ---------- */
+void log_event(const char *ip, int port, const char *req, const char *res) {
     time_t now = time(NULL);
-    char buffer[64];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    char timebuf[64];
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", localtime(&now));
 
-    printf("[%s] %s\n", buffer, msg);
+    printf("[%s] IP:%s PORT:%d\nREQ: %s\nRES: %s\n\n",
+           timebuf, ip, port, req, res);
 
     if (log_file) {
-        fprintf(log_file, "[%s] %s\n", buffer, msg);
+        fprintf(log_file,
+                "[%s] IP:%s PORT:%d\nREQ: %s\nRES: %s\n\n",
+                timebuf, ip, port, req, res);
         fflush(log_file);
     }
 }
@@ -83,8 +90,6 @@ void *handle_client(void *arg) {
     int sock = clients[idx].sockfd;
     char buffer[BUFFER_SIZE];
 
-    log_event("Nueva conexión");
-
     while (1) {
         int n = read_line(sock, buffer);
         if (n <= 0) break;
@@ -109,9 +114,7 @@ void *handle_client(void *arg) {
                 sprintf(response, "OK REGISTERED %s", id);
                 send_line(sock, response);
 
-                char logmsg[128];
-                sprintf(logmsg, "REGISTER %s", id);
-                log_event(logmsg);
+                log_event(clients[idx].ip, clients[idx].port, buffer, response);
             }
         }
 
@@ -124,17 +127,14 @@ void *handle_client(void *arg) {
                 clients[idx].last_value = valor;
 
                 send_line(sock, "OK DATA_RECEIVED");
-
-                char logmsg[128];
-                sprintf(logmsg, "DATA %s %s %.2f", id, tipo, valor);
-                log_event(logmsg);
+                log_event(clients[idx].ip, clients[idx].port, buffer, "OK DATA_RECEIVED");
 
                 if (valor > 75) {
                     char alert[BUFFER_SIZE];
                     sprintf(alert, "ALERT %s %s HIGH %.2f %s", id, tipo, valor, ts);
 
                     broadcast_alert(alert);
-                    log_event(alert);
+                    log_event(clients[idx].ip, clients[idx].port, buffer, alert);
                 }
             }
         }
@@ -158,25 +158,25 @@ void *handle_client(void *arg) {
             if (!found) strcpy(resp, "SENSORS NONE");
 
             send_line(sock, resp);
-            log_event("GET SENSORS");
+            log_event(clients[idx].ip, clients[idx].port, buffer, resp);
         }
 
         /* PING */
         else if (strcmp(cmd, "PING") == 0) {
             send_line(sock, "PONG");
-            log_event("PING recibido");
+            log_event(clients[idx].ip, clients[idx].port, buffer, "PONG");
         }
 
         /* DISCONNECT */
         else if (strcmp(cmd, "DISCONNECT") == 0) {
             send_line(sock, "OK BYE");
-            log_event("Cliente desconectado");
+            log_event(clients[idx].ip, clients[idx].port, buffer, "OK BYE");
             break;
         }
 
         else {
             send_line(sock, "ERROR UNKNOWN_COMMAND");
-            log_event("ERROR comando desconocido");
+            log_event(clients[idx].ip, clients[idx].port, buffer, "ERROR UNKNOWN_COMMAND");
         }
     }
 
@@ -212,7 +212,10 @@ int main(int argc, char *argv[]) {
     printf("Servidor escuchando en puerto %d\n", port);
 
     while (1) {
-        int client_fd = accept(server_fd, NULL, NULL);
+        struct sockaddr_in client_addr;
+        socklen_t addr_len = sizeof(client_addr);
+
+        int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
 
         pthread_mutex_lock(&mutex);
         int idx = -1;
@@ -221,6 +224,10 @@ int main(int argc, char *argv[]) {
                 idx = i;
                 clients[i].active = 1;
                 clients[i].sockfd = client_fd;
+
+                strcpy(clients[i].ip, inet_ntoa(client_addr.sin_addr));
+                clients[i].port = ntohs(client_addr.sin_port);
+
                 break;
             }
         }

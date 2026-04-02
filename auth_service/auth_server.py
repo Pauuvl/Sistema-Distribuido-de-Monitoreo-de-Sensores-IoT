@@ -1,47 +1,32 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import json
-
-HOST = "localhost"
-PORT = 5000
-
-# Usuarios simulados
-USERS = {
-    "admin": {"password": "1234", "role": "operator"},
-    "user": {"password": "abcd", "role": "viewer"}
-}
+import urllib.parse
 
 class AuthHandler(BaseHTTPRequestHandler):
 
-    def do_GET(self):
-        if self.path.startswith("/auth"):
-            try:
-                query = self.path.split("?")[1]
-                params = dict(q.split("=") for q in query.split("&"))
+    def do_POST(self):
+        if self.path == "/auth":
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length).decode()
 
-                username = params.get("user")
-                password = params.get("pass")
+            params = urllib.parse.parse_qs(post_data)
+            user = params.get("user", [""])[0]
 
-                if username in USERS and USERS[username]["password"] == password:
-                    response = {
-                        "status": "OK",
-                        "role": USERS[username]["role"]
-                    }
-                    self.send_response(200)
-                else:
-                    response = {"status": "FAIL"}
-                    self.send_response(401)
+            if user == "admin":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"OK")
+            else:
+                self.send_response(401)
+                self.end_headers()
+                self.wfile.write(b"FAIL")
 
-            except:
-                response = {"status": "ERROR"}
-                self.send_response(400)
-
-            self.send_header("Content-Type", "application/json")
+        else:
+            self.send_response(404)
             self.end_headers()
-            self.wfile.write(json.dumps(response).encode())
 
 def run():
-    server = HTTPServer((HOST, PORT), AuthHandler)
-    print(f"Auth Service running on {HOST}:{PORT}")
+    server = HTTPServer(('localhost', 5000), AuthHandler)
+    print("Auth Service running on localhost:5000")
     server.serve_forever()
 
 if __name__ == "__main__":

@@ -1,55 +1,38 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import socket
-import json
-
-HOST = "localhost"
-PORT = 8000
+import requests
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import urllib.parse
 
 IOT_SERVER_HOST = "localhost"
 IOT_SERVER_PORT = 8080
 
-AUTH_HOST = "localhost"
-AUTH_PORT = 5000
+AUTH_SERVER_URL = "http://localhost:5000/auth"
 
-class WebHandler(BaseHTTPRequestHandler):
+class MyHandler(BaseHTTPRequestHandler):
 
+    # =========================
+    # GET
+    # =========================
     def do_GET(self):
+        if self.path == "/":
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
 
-        # ================= LOGIN =================
-        if self.path.startswith("/login"):
-            try:
-                query = self.path.split("?")[1]
-                params = dict(q.split("=") for q in query.split("&"))
+            html = """
+            <html>
+            <body>
+                <h2>Login</h2>
+                <form method="POST" action="/login">
+                    Usuario: <input type="text" name="user"><br><br>
+                    <input type="submit" value="Ingresar">
+                </form>
+            </body>
+            </html>
+            """
 
-                user = params.get("user")
-                password = params.get("pass")
+            self.wfile.write(html.encode())
 
-                # llamar auth service
-                auth_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                auth_socket.connect((AUTH_HOST, AUTH_PORT))
-
-                request = f"GET /auth?user={user}&pass={password} HTTP/1.1\r\nHost: localhost\r\n\r\n"
-                auth_socket.send(request.encode())
-
-                response = auth_socket.recv(1024).decode()
-                auth_socket.close()
-
-                if "200 OK" in response:
-                    self.send_response(200)
-                    self.end_headers()
-                    self.send_response(302)
-                    self.send_header("Location", "/status")
-                    self.end_headers()
-                else:
-                    self.send_response(401)
-                    self.end_headers()
-                    self.wfile.write(b"Login fallido")
-
-            except:
-                self.send_response(400)
-                self.end_headers()
-
-        # ================= ESTADO =================
         elif self.path == "/status":
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -61,23 +44,23 @@ class WebHandler(BaseHTTPRequestHandler):
                 s.close()
 
                 self.send_response(200)
-                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-type", "text/html")
                 self.end_headers()
 
                 html = f"""
                 <html>
                 <body>
-                <h1>Estado del Sistema IoT</h1>
+                    <h1>Estado del Sistema IoT</h1>
 
-                <h2>Sensores Activos</h2>
-                <pre>{data}</pre>
+                    <h2>Sensores Activos</h2>
+                    <pre>{data}</pre>
 
-                <h2>Opciones</h2>
-                <a href="/">Volver</a>
-
+                    <br>
+                    <a href="/">Cerrar sesión</a>
                 </body>
                 </html>
                 """
+
                 self.wfile.write(html.encode())
 
             except Exception as e:
@@ -85,35 +68,45 @@ class WebHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(str(e).encode())
 
-        # ================= HOME =================
         else:
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html")
+            self.send_response(404)
             self.end_headers()
 
-            html = """
-            <html>
-            <body>
-                <h1>IoT Monitoring</h1>
+    # =========================
+    # POST (LOGIN)
+    # =========================
+    def do_POST(self):
+        if self.path == "/login":
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length).decode()
 
-                <h2>Login</h2>
-                <form action="/login">
-                    Usuario: <input name="user"><br>
-                    Password: <input name="pass"><br>
-                    <input type="submit" value="Login">
-                </form>
+                params = urllib.parse.parse_qs(post_data)
+                user = params.get("user", [""])[0]
 
-                <h2>Opciones</h2>
-                <a href="/status">Ver estado del sistema</a>
-            </body>
-            </html>
-            """
+                # 🔥 CONEXIÓN AL AUTH SERVER
+                res = requests.post(AUTH_SERVER_URL, data={"user": user})
 
-            self.wfile.write(html.encode())
+                if res.status_code == 200:
+                    self.send_response(302)
+                    self.send_header("Location", "/status")
+                    self.end_headers()
+                else:
+                    self.send_response(401)
+                    self.end_headers()
+                    self.wfile.write(b"Login incorrecto")
 
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(str(e).encode())
+
+# =========================
+# RUN SERVER
+# =========================
 def run():
-    server = HTTPServer((HOST, PORT), WebHandler)
-    print(f"Web server running on http://{HOST}:{PORT}")
+    server = HTTPServer(('localhost', 8000), MyHandler)
+    print("Servidor web en http://localhost:8000")
     server.serve_forever()
 
 if __name__ == "__main__":
