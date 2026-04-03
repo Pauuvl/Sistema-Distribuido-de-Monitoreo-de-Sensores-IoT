@@ -7,7 +7,7 @@ from tkinter import scrolledtext
 # CONFIGURACIÓN
 # ==============================
 HOST = "localhost"   # Cambia por tu dominio (NO IP fija en entrega final)
-PORT = 8080
+PORT = 9090
 
 # ==============================
 # SOCKET CLIENTE
