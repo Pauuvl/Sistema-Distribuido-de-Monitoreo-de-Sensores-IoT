@@ -6,15 +6,14 @@ WORKDIR /app
 
 # Copiar fuente y compilar
 COPY server.c .
-COPY Makefile .
 
-RUN make
+RUN gcc -o server server.c -lpthread
 
 # Crear carpeta de logs
 RUN mkdir -p /app/logs
 
 # Exponer el puerto por defecto
-EXPOSE 8080
+EXPOSE 9090
 
-# Ejecutar: puerto 8080, logs en /app/logs/server.log
-CMD ["./server", "8080", "/app/logs/server.log"]
+# Ejecutar: puerto 9090, logs en /app/logs/server.log
+CMD ["./server", "9090", "/app/logs/server.log"]
