@@ -34,12 +34,11 @@
 #include <unistd.h>
 
 // ─── CONFIGURACIÓN ────────────────────────────────────────────────────────────
-const std::string SERVER_HOST = "localhost";  // CAMBIAR por dominio DNS cuando Juan lo configure
-                                              // Ejemplo: "iot.midominio.com"
-const int         SERVER_PORT = 9090;         // CAMBIAR a 8080 cuando esté en AWS
-const int         SEND_INTERVAL  = 5;         // segundos entre mediciones
-const int         PING_INTERVAL  = 20;        // segundos entre PINGs
-const int         RECONNECT_WAIT = 5;         // segundos antes de reintentar conexión
+const std::string SERVER_HOST = "iot-monitoring.com";  // ahora apunta al dominio DNS
+const int         SERVER_PORT = 9090;                 // puerto del servidor en AWS
+const int         SEND_INTERVAL  = 5;                 // segundos entre mediciones
+const int         PING_INTERVAL  = 20;                // segundos entre PINGs
+const int         RECONNECT_WAIT = 5;                 // segundos antes de reintentar conexión
 // ──────────────────────────────────────────────────────────────────────────────
 
 struct SensorConfig {

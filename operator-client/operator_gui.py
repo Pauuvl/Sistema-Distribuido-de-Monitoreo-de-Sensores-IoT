@@ -6,7 +6,7 @@ from tkinter import scrolledtext
 # ==============================
 # CONFIGURACIÓN
 # ==============================
-HOST = "localhost"   # Cambia por tu dominio (NO IP fija en entrega final)
+HOST = "iot-monitoring.com"  # Cambia por tu dominio (NO IP fija en entrega final)
 PORT = 9090
 
 # ==============================

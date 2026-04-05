@@ -8,7 +8,7 @@ from datetime import datetime
 # Cuando Juan configure el DNS, cambia esto
 # por el dominio, ej: "iot.midominio.com"
 
-SERVER_HOST = "localhost"   # <-- cambiar por dominio DNS al desplegar
+SERVER_HOST = "iot-monitoring.com"   # <-- cambiar por dominio DNS al desplegar
 SERVER_PORT = 9090
 SEND_INTERVAL = 5           # segundos entre mediciones
 PING_INTERVAL = 20          # segundos entre PINGs
