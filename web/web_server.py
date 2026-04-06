@@ -6,7 +6,6 @@ import requests
 # ==============================
 # CONFIGURACIÓN
 # ==============================
-
 HOST = "0.0.0.0"
 PORT = 8000
 
@@ -26,11 +25,12 @@ def get_sensors_from_iot():
         s.connect((IOT_SERVER_HOST, IOT_SERVER_PORT))
 
         s.send("REGISTER OPERATOR web\n".encode())
+        s.recv(1024)  # leer "OK REGISTERED web" antes de continuar
+
         s.send("GET SENSORS\n".encode())
-
         data = s.recv(1024).decode()
-        s.close()
 
+        s.close()
         return data
 
     except Exception as e:
@@ -64,7 +64,6 @@ class MyHandler(BaseHTTPRequestHandler):
             """
 
             self.wfile.write(html.encode())
-
 
         # ===== STATUS PAGE =====
         elif self.path == "/status":
@@ -108,7 +107,6 @@ class MyHandler(BaseHTTPRequestHandler):
                 r = requests.post(AUTH_SERVICE_URL, data={"user": user})
 
                 if r.status_code == 200:
-                    # REDIRECCIÓN A STATUS
                     self.send_response(302)
                     self.send_header('Location', '/status')
                     self.end_headers()
