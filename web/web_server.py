@@ -8,7 +8,7 @@ import requests
 # ==============================
 
 HOST = "0.0.0.0"
-PORT = 9090
+PORT = 8000
 
 IOT_SERVER_HOST = "iot-monitoring.com"  # dominio (NO IP)
 IOT_SERVER_PORT = 9090

@@ -1,217 +1,208 @@
-#  IoT Monitoring System — Servidor Central
+# Sistema Distribuido de Monitoreo de Sensores IoT
 
-##  Descripción
-
-Este proyecto implementa un **Servidor Central de Monitoreo IoT** desarrollado en lenguaje C, que permite la comunicación entre sensores simulados y operadores mediante un protocolo de aplicación propio sobre TCP.
-
-El servidor recibe mediciones de sensores, procesa los datos, detecta anomalías y notifica a los operadores en tiempo real.
+Proyecto Nro. 1 — Internet: Arquitectura y Protocolos  
+Universidad EAFIT · 2026-1
 
 ---
 
-## Integrantes del grupo
+## Integrantes
 
-* Juan José Álvarez
-* Helen Valentina Sanabria
-* Paulina Velásquez
-
----
-
-## Arquitectura del sistema
-
-El sistema está compuesto por:
-
-* **Sensores IoT** → envían datos periódicos
-* **Servidor central (este proyecto)** → procesa datos y genera alertas
-* **Operadores** → consultan información y reciben alertas
+- Juan José Álvarez
+- Helen Valentina Sanabria
+- Paulina Velásquez
 
 ---
 
-## Tecnologías utilizadas
+## ¿Qué es esto?
 
-* Lenguaje: C
-* Comunicación: Sockets TCP (`SOCK_STREAM`)
-* Concurrencia: Hilos (`pthread`)
-* Sistema operativo: Linux / WSL
+Un sistema distribuido de monitoreo IoT desplegado en AWS. Simula sensores industriales (temperatura, vibración y energía) que se conectan a un servidor central, el cual detecta anomalías y notifica a los operadores en tiempo real.
+
+El servidor corre en C dentro de un contenedor Docker en una instancia EC2, y los clientes se conectan al dominio `iot-monitoring.com` configurado en Route 53.
 
 ---
 
-## Ejecución del servidor
+## Estructura del proyecto
 
-### 1. Compilar
-
-```bash
-gcc -o server server.c -lpthread
+```
+├── server/
+│   ├── server.c          # servidor central en C
+│   ├── dockerfile        # para construir la imagen Docker
+│   └── logs.txt          # logs generados en ejecución
+│
+├── sensor-client/
+│   ├── sensor.py         # 5 sensores simulados en Python
+│   └── sensor.cpp        # 5 sensores simulados en C++
+│
+├── operator-client/
+│   └── operator_gui.py   # interfaz gráfica del operador (tkinter)
+│
+├── web/
+│   └── web_server.py     # servidor HTTP básico con login
+│
+├── auth_service/
+│   └── auth_server.py    # servicio de autenticación externo
+│
+└── PROTOCOL.md           # especificación completa del protocolo
 ```
 
-### 2. Ejecutar
+---
+
+## Cómo correr el sistema localmente
+
+### Servidor
 
 ```bash
+cd server/
+gcc -o server server.c -lpthread
 ./server 9090 logs.txt
 ```
 
-Parámetros:
+### Sensores (Python)
 
-* `9090` → Puerto del servidor
-* `logs.txt` → Archivo donde se guardan los logs
-
----
-
-## Protocolo de comunicación (IoTMP)
-
-El servidor implementa un protocolo basado en texto plano.
-
-### Registro de operador
-
-```
-REGISTER OPERATOR <id>
+```bash
+cd sensor-client/
+pip install -r requirements.txt
+python sensor.py
 ```
 
-Ejemplo:
+### Sensores (C++)
 
+```bash
+cd sensor-client/
+g++ -std=c++17 -pthread -o sensor sensor.cpp
+./sensor
 ```
-REGISTER OPERATOR op1
-```
-
----
-
-### Registro de sensor
-
-```
-REGISTER SENSOR <id>
-```
-
-Ejemplo:
-
-```
-REGISTER SENSOR s1
-```
-
----
-
-### Envío de datos
-
-```
-DATA <sensor-id> <tipo> <valor> <timestamp>
-```
-
-Ejemplo:
-
-```
-DATA s1 temp 80.0 2024-01-01T10:00:00
-```
-
----
-
-### Consulta de sensores
-
-```
-GET SENSORS
-```
-
----
-
-### Ping
-
-```
-PING
-```
-
----
-
-### Desconexión
-
-```
-DISCONNECT
-```
-
----
-
-## Sistema de alertas
-
-El servidor genera alertas cuando un valor supera un umbral:
-
-* Temperatura > 75 → `HIGH`
-* Temperatura > 95 → `CRITICAL`
-
-Ejemplo de alerta:
-
-```
-ALERT s1 temp HIGH 80.00 2024-01-01T10:00:00
-```
-
-Las alertas se envían automáticamente a todos los operadores conectados.
-
----
-
-## Sistema de logs
-
-El servidor registra eventos importantes en tiempo real en un archivo de logs:
-
-* Conexión de clientes
-* Registro de sensores y operadores
-* Recepción de datos
-* Generación de alertas
-* Desconexiones
-
-Ejemplo:
-
-```
-[2026-03-31 12:20:57] DATA s1 temp 80.00
-[2026-03-31 12:20:57] ALERT s1 temp HIGH 80.00 2024-01-01T10:00:00
-```
-
----
-
-##  Pruebas del sistema
-
-Se puede probar el servidor usando `netcat`:
 
 ### Operador
 
 ```bash
-nc localhost 9090
+cd operator-client/
+python operator_gui.py
 ```
 
+### Autenticación y web
+
+```bash
+# En terminales separadas:
+python auth_service/auth_server.py
+python web/web_server.py
+# Abrir http://localhost:8000 — usuario: admin
 ```
+
+### Prueba rápida con netcat
+
+```bash
+nc localhost 9090
 REGISTER OPERATOR op1
 GET SENSORS
 ```
 
 ---
 
-### Sensor
+## Protocolo de aplicación (IoTMP)
+
+Protocolo de texto plano sobre TCP. Cada mensaje es una línea terminada en `\n`.
+
+### Mensajes
+
+**Registro:**
+```
+REGISTER SENSOR <tipo> <id>    # tipo: temp | vibr | energy
+REGISTER OPERATOR <id>
+→ OK REGISTERED <id>
+```
+
+**Envío de datos:**
+```
+DATA <id> <tipo> <valor> <timestamp>
+→ OK DATA_RECEIVED
+```
+
+**Consulta de sensores:**
+```
+GET SENSORS
+→ SENSORS sensor-001:temp:36.50 sensor-003:vibr:1.20 ...
+```
+
+**Heartbeat:**
+```
+PING → PONG
+```
+
+**Desconexión:**
+```
+DISCONNECT → OK BYE
+```
+
+**Alertas (el servidor las envía automáticamente):**
+```
+ALERT <id> <tipo> HIGH <valor> <timestamp>
+```
+
+Umbrales de alerta: temperatura > 75°C, vibración > 3.0 mm/s, energía > 400 kW.
+
+**Errores:**
+```
+ERROR UNKNOWN_COMMAND
+ERROR NOT_REGISTERED
+ERROR DATA_FORMAT
+ERROR REGISTER_FORMAT
+```
+
+---
+
+## Docker
 
 ```bash
-nc localhost 9090
-```
-
-```
-REGISTER SENSOR s1
-DATA s1 temp 80.0 2024-01-01T10:00:00
+cd server/
+docker build -t iot-server .
+docker run -d -p 9090:9090 --name iot-server iot-server
+docker logs iot-server
 ```
 
 ---
 
-##  Características principales
+## Despliegue en AWS
 
-* Manejo de múltiples clientes simultáneos
-* Comunicación en tiempo real
-* Protocolo propio basado en texto
-* Sistema de alertas automático
-* Registro de eventos (logging)
-* Arquitectura cliente-servidor
+La instancia EC2 corre en `54.221.60.253` (Ubuntu 24.04, t2.micro) con el puerto 9090 abierto. El dominio `iot-monitoring.com` está configurado en Route 53 apuntando a esa IP con un registro A.
+
+### Pasos para desplegar desde cero
+
+```bash
+# 1. Conectarse
+chmod 400 labsuser.pem
+ssh -i labsuser.pem ubuntu@54.221.60.253
+
+# 2. Instalar Docker
+sudo apt-get update
+sudo apt-get install -y docker.io
+sudo systemctl start docker
+sudo usermod -aG docker ubuntu
+exit  # reconectar después
+
+# 3. Clonar y buildear
+git clone https://github.com/Pauuvl/Sistema-Distribuido-de-Monitoreo-de-Sensores-IoT.git
+cd Sistema-Distribuido-de-Monitoreo-de-Sensores-IoT/server
+docker build -t iot-server .
+docker run -d -p 9090:9090 --name iot-server iot-server
+
+# 4. Verificar
+docker ps
+nc iot-monitoring.com 9090
+```
 
 ---
 
-## Consideraciones
+## Logging
 
-* El servidor es tolerante a múltiples conexiones
-* Los datos se procesan en tiempo real
-* Los logs permiten trazabilidad del sistema
-* El diseño es escalable para integrar más sensores
+El servidor registra cada petición en consola y en el archivo de logs:
 
----
+```
+[2026-04-05 21:00:00] IP:190.x.x.x PORT:54321
+REQ: DATA sensor-001 temp 82.50 2026-04-05T21:00:05
+RES: OK DATA_RECEIVED
 
-##  Curso
-
-Internet: Arquitectura y Protocolos
+[2026-04-05 21:00:00] IP:190.x.x.x PORT:54321
+REQ: DATA sensor-001 temp 82.50 2026-04-05T21:00:05
+RES: ALERT sensor-001 temp HIGH 82.50 2026-04-05T21:00:05
+```
