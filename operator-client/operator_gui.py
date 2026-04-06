@@ -6,13 +6,14 @@ from tkinter import scrolledtext
 # ==============================
 # CONFIGURACIÓN
 # ==============================
-HOST = "iot-monitoring.com"  # Cambia por tu dominio (NO IP fija en entrega final)
+HOST = "iot-monitoring.com"  # Cambiar a "localhost" para pruebas locales
 PORT = 9090
 
 # ==============================
 # SOCKET CLIENTE
 # ==============================
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+connected = False
 
 # ==============================
 # INTERFAZ
@@ -56,58 +57,20 @@ text_alerts.pack(fill=tk.BOTH, padx=20, pady=5)
 # FUNCIONES
 # ==============================
 
-def connect_to_server():
-    try:
-        client.connect((HOST, PORT))
-        client.send("REGISTER OPERATOR op1\n".encode())
-        text_data.insert(tk.END, "Conectado al servidor\n")
-        threading.Thread(target=receive_messages, daemon=True).start()
-    except Exception as e:
-        text_data.insert(tk.END, f"Error: {e}\n")
-
-
-def get_sensors():
-    try:
-        client.send("GET SENSORS\n".encode())
-    except:
-        text_data.insert(tk.END, "No conectado\n")
-
-
 def receive_messages():
     while True:
         try:
             message = client.recv(1024).decode()
             if not message:
                 break
-
             process_message(message)
-
         except:
             break
 
 
-def process_message(msg):
-    lines = msg.strip().split("\n")
-
-    for line in lines:
-        if line.startswith("ALERT"):
-            text_alerts.insert(tk.END, line + "\n")
-            text_alerts.see(tk.END)
-
-        elif line.startswith("DATA"):
-            text_data.insert(tk.END, line + "\n")
-            text_data.see(tk.END)
-
-        elif line.startswith("SENSOR"):
-            list_sensors.insert(tk.END, line)
-
-        else:
-            text_data.insert(tk.END, line + "\n")
-
-connected = False
-
 def connect_to_server():
     global connected
+
     if connected:
         text_data.insert(tk.END, "Ya estás conectado\n")
         return
@@ -115,11 +78,47 @@ def connect_to_server():
     try:
         client.connect((HOST, PORT))
         client.send("REGISTER OPERATOR op1\n".encode())
+
         connected = True
         text_data.insert(tk.END, "Conectado al servidor\n")
+
         threading.Thread(target=receive_messages, daemon=True).start()
+
     except Exception as e:
         text_data.insert(tk.END, f"Error: {e}\n")
+
+
+def get_sensors():
+    if connected:
+        client.send("GET SENSORS\n".encode())
+    else:
+        text_data.insert(tk.END, "No conectado\n")
+
+
+def process_message(msg):
+    lines = msg.strip().split("\n")
+
+    for line in lines:
+
+        # ALERTAS
+        if line.startswith("ALERT"):
+            text_alerts.insert(tk.END, line + "\n")
+            text_alerts.see(tk.END)
+
+        # LISTA DE SENSORES (respuesta del servidor)
+        elif line.startswith("SENSORS"):
+            list_sensors.delete(0, tk.END)  # limpiar lista
+
+            parts = line.split()[1:]  # quitar palabra SENSORS
+
+            for sensor in parts:
+                list_sensors.insert(tk.END, sensor)
+
+        # RESPUESTAS GENERALES
+        else:
+            text_data.insert(tk.END, line + "\n")
+            text_data.see(tk.END)
+
 # ==============================
 # EVENTOS BOTONES
 # ==============================
@@ -130,4 +129,5 @@ btn_get_sensors.config(command=get_sensors)
 # ==============================
 # EJECUCIÓN
 # ==============================
+
 root.mainloop()
