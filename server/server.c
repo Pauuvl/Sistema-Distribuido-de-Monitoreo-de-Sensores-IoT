@@ -33,6 +33,7 @@ Client clients[MAX_CLIENTS];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 FILE *log_file;
 
+/* ---------- LOG ---------- */
 void log_event(const char *ip, int port, const char *req, const char *res) {
     time_t now = time(NULL);
     char timebuf[64];
