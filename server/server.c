@@ -146,8 +146,8 @@ void *handle_client(void *arg) {
 
                 int anomalia = 0;
 
-                if (strcmp(tipo, "temp") == 0 && valor > 75) anomalia = 1;
-                if (strcmp(tipo, "vibr") == 0 && valor > 3.0) anomalia = 1;
+                if (strcmp(tipo, "temp") == 0   && valor > 75)  anomalia = 1;
+                if (strcmp(tipo, "vibr") == 0   && valor > 3.0) anomalia = 1;
                 if (strcmp(tipo, "energy") == 0 && valor > 400) anomalia = 1;
 
                 if (anomalia) {
@@ -229,14 +229,25 @@ int main(int argc, char *argv[]) {
     log_file = fopen(argv[2], "a");
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        perror("Error al crear el socket");
+        return 1;
+    }
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
 
-    bind(server_fd, (struct sockaddr *)&addr, sizeof(addr));
-    listen(server_fd, 10);
+    if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        perror("Error en bind — puerto posiblemente ocupado");
+        return 1;
+    }
+
+    if (listen(server_fd, 10) < 0) {
+        perror("Error en listen");
+        return 1;
+    }
 
     printf("Servidor escuchando en puerto %d\n", port);
 
