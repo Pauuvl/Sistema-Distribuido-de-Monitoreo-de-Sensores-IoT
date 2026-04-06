@@ -46,12 +46,12 @@ gcc -o server server.c -lpthread
 ### 2. Ejecutar
 
 ```bash
-./server 8080 logs.txt
+./server 9090 logs.txt
 ```
 
 Parámetros:
 
-* `8080` → Puerto del servidor
+* `9090` → Puerto del servidor
 * `logs.txt` → Archivo donde se guardan los logs
 
 ---
@@ -169,7 +169,7 @@ Se puede probar el servidor usando `netcat`:
 ### Operador
 
 ```bash
-nc localhost 8080
+nc localhost 9090
 ```
 
 ```
@@ -182,7 +182,7 @@ GET SENSORS
 ### Sensor
 
 ```bash
-nc localhost 8080
+nc localhost 9090
 ```
 
 ```
